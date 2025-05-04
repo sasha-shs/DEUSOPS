@@ -1,0 +1,17 @@
+---
+- name: Configure Spring boot app
+  hosts: app
+  become: yes
+  roles:
+    - role: spring_boot
+
+      
+- name: Configure monitoring
+  hosts: monitoring
+  become: yes
+  roles:
+    - role: prometheus
+    - role: loki
+    - role: grafana
+      
+

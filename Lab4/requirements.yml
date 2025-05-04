@@ -1,0 +1,7 @@
+roles:
+  - name: openvpn
+    scm: git
+    src: https://github.com/sasha-shs/openvpn.git
+    version: main
+
+# ansible-galaxy install -r requirements.yml

@@ -1,0 +1,7 @@
+roles:
+  - name: docker
+    scm: git
+    src: https://github.com/sasha-shs/docker.git
+    version: main
+
+# ansible-galaxy install -r requirements.yml

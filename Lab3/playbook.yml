@@ -1,0 +1,61 @@
+- hosts: web
+  become: true
+  roles:
+    - nginx
+
+- hosts: app
+  become: true
+  gather_facts: no
+  roles:
+    - docker
+  vars:
+   image_path: "/tmp/django-image.tar"
+
+  tasks:
+    - name: Copy Docker image to server
+      copy:
+        src: django-image.tar
+        dest: "{{ image_path }}"
+        mode: '0644'
+
+    # Загрузка образа в Docker
+    - name: Load Docker image
+      docker_image:
+        name: "sashashs/django"
+        source: load
+        load_path: "{{ image_path }}"
+
+    - name: Ensure /tmp/staticfiles exists
+      ansible.builtin.file:
+        path: /tmp/staticfiles
+        state: directory
+        mode: '0755'
+
+    - name: Run temporary container to extract static files
+      community.docker.docker_container:
+        name: temp_static_container
+        image: "sashashs/django:latest"
+        command: "sleep 10"  # Просто ждём, чтобы контейнер не завершился сразу
+        detach: true
+      register: temp_container
+
+    - name: Copy static files from container to host
+      ansible.builtin.command: "docker cp temp_static_container:/app/staticfiles/. /tmp/staticfiles/"
+      when: temp_container.changed
+
+    - name: Remove temporary container
+      community.docker.docker_container:
+        name: temp_static_container
+        state: absent
+
+    - name: Run the Django container
+      docker_container:
+        name: django_app
+        image: sashashs/django:latest
+        state: started
+        restart_policy: always
+        volumes:
+          - /tmp/staticfiles:/app/staticfiles
+        ports:
+          - "8000:8000"
+

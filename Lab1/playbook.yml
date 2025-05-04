@@ -1,0 +1,126 @@
+---
+- name: Deploy Django application with virtual environment
+  hosts: app
+  become: true
+  vars:
+    app_dir: "/home/{{ ansible_user }}/app"
+    venv_dir: "/home/{{ ansible_user }}/venv"
+    python_version: "python3.12"
+    requirements_file: "{{ app_dir }}/requirements.txt"
+
+  tasks:
+    # ========== System Setup ==========
+    - name: Install Docker prerequisites
+      block:
+        - name: Add Docker GPG key
+          apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+
+        - name: Add Docker repository
+          apt_repository:
+            repo: deb https://download.docker.com/linux/ubuntu focal stable
+            state: present
+
+        - name: Install Docker CE
+          apt:
+            name: docker-ce
+            state: latest
+            update_cache: true
+
+    # ========== Prepare Environment ==========
+    - name: Install system dependencies
+      apt:
+        name:
+          - "{{ python_version }}"
+          - "{{ python_version }}-venv"
+          - python3-pip
+          - python3-dev
+          - git
+        state: present
+
+    # ========== Application Directory Setup ==========
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        
+        mode: '0755'
+
+    # ========== Repository Management ==========
+    - name: Clone repository (as current user)
+      become: false
+      git:
+        repo: "https://github.com/mdn/django-locallibrary-tutorial.git"
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+
+    - name: Fix repository permissions
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        recurse: yes
+        owner: "{{ ansible_user }}"
+        mode: '0755'
+
+    # ========== Virtual Environment ==========
+    - name: Create virtual environment
+      command: "{{ python_version }} -m venv {{ venv_dir }}"
+      args:
+        creates: "{{ venv_dir }}"
+      become_user: "{{ ansible_user }}"
+
+    - name: Install Python dependencies
+      pip:
+        requirements: "{{ requirements_file }}"
+        virtualenv: "{{ venv_dir }}"
+        virtualenv_python: "{{ python_version }}"
+      become_user: "{{ ansible_user }}"
+
+    # ========== Django Configuration ==========
+    - name: Update shebang line in manage.py
+      ineinfile:
+        path: "{{ app_dir }}/manage.py"
+        regexp: '^#!/usr/bin/env python.*'
+        line: "#!/usr/bin/env {{ venv_dir }}/bin/python"
+        owner: "{{ ansible_user }}"  
+        mode: '0755'
+
+    # ========== Database Operations ==========
+    - name: Run migrations
+      command: "{{ venv_dir }}/bin/python manage.py migrate"
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ ansible_user }}"
+
+    - name: Collect static files
+      command: "{{ venv_dir }}/bin/python manage.py collectstatic --noinput"
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ ansible_user }}"
+
+    # ========== Superuser Setup ==========
+    - name: Create superuser
+      command: >
+        {{ venv_dir }}/bin/python manage.py createsuperuser
+        --noinput
+      environment:
+        DJANGO_SUPERUSER_USERNAME: "ADMIN"
+        DJANGO_SUPERUSER_PASSWORD: "ADMIN"
+        DJANGO_SUPERUSER_EMAIL: "admin@admin.com"
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ ansible_user }}"
+      ignore_errors: yes
+
+    # ========== Application Startup ==========
+    - name: Start Django development server
+      command: >
+        nohup {{ venv_dir }}/bin/python manage.py runserver &
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: "{{ ansible_user }}"
+      async: 10
+      poll: 0

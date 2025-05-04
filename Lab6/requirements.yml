@@ -1,0 +1,22 @@
+roles:
+  - name: spring_boot
+    scm: git
+    src: https://github.com/sasha-shs/spring_boot.git
+    version: main
+
+  - name: prometheus
+    scm: git
+    src: https://github.com/sasha-shs/prometheus.git
+    version: main
+
+  - name: loki
+    scm: git
+    src: https://github.com/sasha-shs/loki.git
+    version: main
+
+  - name: grafana
+    scm: git
+    src: https://github.com/sasha-shs/grafana.git
+    version: main
+
+# ansible-galaxy install -r requirements.yml

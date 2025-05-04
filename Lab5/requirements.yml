@@ -1,0 +1,12 @@
+roles:
+  - name: postgresql
+    scm: git
+    src: https://github.com/sasha-shs/postgresql.git
+    version: main
+
+  - name: docker
+    scm: git
+    src: https://github.com/sasha-shs/docker.git
+    version: main
+
+# ansible-galaxy install -r requirements.yml
