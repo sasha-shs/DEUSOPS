@@ -1,0 +1,5 @@
+promtail_loki_ip: "192.168.56.202"
+
+promtail_loki_port: 3100
+
+promtail_log_path: /opt/spring-boot-demo/spring-boot.log
